@@ -13,13 +13,9 @@ class ViewCoordinateDetermination:
         self.KRT = self.K @ self.R @ self.T
 
     def get_coordinates_by_pixel(self, x: float, y: float) -> tuple[float, float]:
-
         x_scaled = x * self.scale
         y_scaled = y * self.scale
-
         new_column = np.array([[self.cx - x_scaled], [self.cy - y_scaled], [-1]])
-        A_modified = np.hstack((self.A[:, :2], new_column))
-
-        p = np.linalg.lstsq(A_modified, self.KRT, rcond=None)[0]
-
+        a_modified = np.hstack((self.A[:, :2], new_column))
+        p = np.linalg.lstsq(a_modified, self.KRT, rcond=None)[0]
         return p[0, 0], p[1, 0]

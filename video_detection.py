@@ -2,14 +2,28 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-from CameraView import CameraView
+from camera_view import CameraView
 from coordinate_determination import ViewCoordinateDetermination
+from map_image import MapImage
 from object_clustering import ObjectClustering
+
+CAMERA_COLOR = (0, 0, 255)
+PEOPLES_TOP_COLOR = (0, 255, 255)
+PEOPLES_OTHER_COLOR = (0, 255, 0)
 
 
 class VideoDetection:
 
-    def __init__(self, video_views: list[CameraView], model_name: str = 'yolo11n.pt'):
+    def __init__(self, video_views: list[CameraView], result_size: tuple[int, int], range_x: tuple[int, int],
+                 range_y: tuple[int, int], stream: bool = False, out_name: str = 'result.mp4',
+                 model_name: str = 'yolo11n.pt', object_class: int = 0):
+        self.stream = stream
+        self.object_class = object_class
+        self.out_name = out_name
+        self.output_width = result_size[0]
+        self.output_height = result_size[1]
+        self.range_x = range_x
+        self.range_y = range_y
         self.video_views = video_views
         self.model = YOLO(model_name)
         self.clustering_processor = ObjectClustering(eps=0.7)
@@ -23,28 +37,49 @@ class VideoDetection:
             ) for i, view in enumerate(self.video_views)
         }
 
-    def draw_people(self, clusters, frames):
+    def draw_map(self, clusters):
+        map_img = MapImage(self.output_width, int(self.output_height/2), self.range_x, self.range_y)
+        camera_objects = [(view.video_stream, view.T[0][0], view.T[1][0]) for view in self.video_views]
+        map_img.draw_objects(camera_objects, CAMERA_COLOR)
+        peoples_top = [(cluster, *clusters[cluster]['mean']) for cluster in clusters if len(clusters[cluster]['points']) > 1]
+        map_img.draw_objects(peoples_top, PEOPLES_TOP_COLOR)
+        peoples_other = [(cluster, *clusters[cluster]['mean']) for cluster in clusters if len(clusters[cluster]['points']) == 1]
+        map_img.draw_objects(peoples_other, PEOPLES_OTHER_COLOR)
+        return map_img.map
+
+    def draw_rectangle(self, clusters, frames):
         for cluster in clusters:
             for camera in clusters[cluster]['cameras']:
                 x1, y1, x2, y2 = clusters[cluster]['cameras'][camera]
                 X, Y = clusters[cluster]['mean']
                 if len(clusters[cluster]['points']) > 1:
-                    color = (0, 255, 255)
+                    color = PEOPLES_TOP_COLOR
                 else:
-                    color = (0, 255, 0)
+                    color = PEOPLES_OTHER_COLOR
                 frame = frames[camera]
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(frame, f"Person X={round(X, 2)}, Y={round(Y, 2)}", (x1, y1 - 10),
+                cv2.putText(frame, f"Id = {cluster} {X:.2f}, {Y:.2f}", (x1, y1 - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-        for index, frame in enumerate(frames):
-            cv2.imshow(f"Video {index}", frame)
+
+    def draw_people(self, clusters, frames, out):
+        self.draw_rectangle(clusters, frames)
+        if len(frames) > 1:
+            frame1 = cv2.resize(frames[0], (self.output_width//2, self.output_height//2))
+            frame2 = cv2.resize(frames[1], (self.output_width//2, self.output_height//2))
+            combined_frame = np.hstack((frame1, frame2))
+        else:
+            combined_frame = cv2.resize(frames[0], (self.output_width, self.output_height//2))
+        map_img = self.draw_map(clusters)
+        final_output = np.vstack((combined_frame, map_img))
+        if self.stream:
+            cv2.imshow("Combined Videos", final_output)
+        out.write(final_output)
 
     def process_boxes(self, boxex, index: int):
         result = []
         for box in boxex:
-            if int(box.cls[0]) == 0:
-                x1, y1, x2, y2 = map(int, box.xyxy[0])  # координаты бокса
-                # нижняя точка бокса (центр низа)
+            if int(box.cls[0]) == self.object_class:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
                 u = float((x1 + x2) / 2)
                 v = float(y2)
                 coordinate_processor = self.coordinate_processors[index]
@@ -53,6 +88,8 @@ class VideoDetection:
         return result
 
     def run(self):
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(self.out_name, fourcc, 30, (self.output_width, self.output_height))
         captures = [cv2.VideoCapture(view.video_stream) for view in self.video_views]
         while True:
             frames = []
@@ -67,9 +104,13 @@ class VideoDetection:
             peoples = [i for j in peoples for i in j]
             cameras = [item[0] for item in peoples]
             pixels = [item[1] for item in peoples]
-            points = np.array([item[2] for item in peoples])  # Nx2 или Nx3 массив координат людей
+            points = np.array([item[2] for item in peoples])
             clusters = self.clustering_processor.get_clusters(cameras, pixels, points)
-            self.draw_people(clusters, frames)
+            self.draw_people(clusters, frames, out)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+        for capture in captures:
+            capture.release()
+        out.release()
+        cv2.destroyAllWindows()

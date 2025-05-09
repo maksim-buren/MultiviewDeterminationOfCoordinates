@@ -9,6 +9,8 @@ class ObjectClustering:
 
     def get_clusters(self, cameras: list[int], pixels: list[tuple[float, float]], points: list[tuple[float, float]]) \
             -> dict:
+        if len(points) == 0:
+            return {}
         clasters = self.clustering.fit(points)
         result = {}
         for index, label in enumerate(clasters.labels_):

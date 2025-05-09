@@ -1,3 +1,4 @@
 data/
 venv
 yolo*
+local_settings.py
