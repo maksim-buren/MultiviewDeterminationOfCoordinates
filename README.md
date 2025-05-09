@@ -86,4 +86,4 @@ The system generates a composite video stream with the following structure:
   - 💛 **Yellow markers**: Objects with verified positions (averaged from multiple views)  
   - 💚 **Green markers**: Objects detected by single camera only  
 
-*(Example visualization will be inserted here: [RESULT_VIDEO.mp4])*
+*(Example visualization will be inserted here: [example.mp4](https://github.com/maksim-buren/MultiviewDeterminationOfCoordinates/blob/main/example/example.mp4))*
