@@ -60,6 +60,8 @@ RANGE_X = (-20, 20)
 RANGE_Y = (-5, 35)
 STREAM = True
 OUT_NAME = 'example.mp4'
+MODEL = 'yolo11n.pt'
+OBJECT_CLASS = 0
 ```
 
 *The example uses cameras from the test dataset: [Multiview Object Tracking Dataset (Auditorium)](https://bitbucket.org/merayxu/multiview-object-tracking-dataset/src/master/CAMPUS/Auditorium/).*  
