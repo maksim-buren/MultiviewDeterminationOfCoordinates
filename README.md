@@ -10,7 +10,7 @@ Testing was performed on the **Multiview Object Tracking Dataset** ([Bitbucket l
 
 ## Requirements  
 - Python 3 (tested on Python 3.10 and above).  
-- Dependencies: Install via `pip install -r requirements.txt`.  
+- Dependencies: Install via `pip install -r requirements/min_requirements.txt`.  
 - Recommended: Use a virtual environment.  
 
 ## Input Parameters  
@@ -72,20 +72,41 @@ OBJECT_CLASS = 0
    ```bash  
    python3 main.py  
    ```
+   
+### How to get Rotating matrix by angles
+Execute:
+```bash  
+   python3 main.py rotating_matrix x y z
+   ```
+where x, y and z are angles in degrees
+
 ## Output Visualization
 
 The system generates a composite video stream with the following structure:
 
-### Camera Feed Display
-- **Top section**: Shows synchronized feeds from input cameras  
-  *(Note: Only 1-2 camera feeds are displayed visually; all others process data in background)*  
-- **Overlay elements**:  
-  - 🟡 **Yellow bounding boxes**: Multi-camera detections (≥2 cameras)  
-  - 🟢 **Green bounding boxes**: Single-camera detections  
 
-### Coordinate Mapping
-- **Bottom section**: Displays 2D ground plane projection with:  
-  - 💛 **Yellow markers**: Objects with verified positions (averaged from multiple views)  
-  - 💚 **Green markers**: Objects detected by single camera only  
+### Camera Feed Visualization
+
+#### Object Detection Display
+- 🟢 **Green bounding boxes**: Objects visible in **2+ cameras** (high confidence)
+- 🟡 **Yellow bounding boxes**: Objects visible only in **Camera 1**
+- 🔵 **Blue bounding boxes**: Objects visible only in **Camera 2**
+- ▪️ *Note: Boxes are only drawn for Cameras 1 & 2 (primary displays)*
+
+### Ground Plane Projection
+
+#### Coordinate Mapping
+| Color     | Meaning                         | Visibility Source     |
+|-----------|---------------------------------|-----------------------|
+| 🔴 Red    | Camera                          | Position from config  |
+| 🟢 Green  | Multi-camera objects (≥2 views) | Position averaged     |
+| 🟡 Yellow | Camera 1-only objects           | Single-view detection |
+| 🔵 Blue   | Camera 2-only objects           | Single-view detection |
+| 🏷️ Cyan  | Other cameras' objects          | (Map-only display)    |
+
 
 *(Example visualization will be inserted here: [example.mp4](https://github.com/maksim-buren/MultiviewDeterminationOfCoordinates/blob/main/example/example.mp4))*
+
+
+
+

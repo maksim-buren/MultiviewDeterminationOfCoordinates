@@ -3,13 +3,10 @@ import numpy as np
 from ultralytics import YOLO
 
 from camera_view import CameraView
+from constants import CAMERA_POINT_COLOR, MULTI_VIEW_COLOR, CAMERA_1_COLOR, CAMERA_2_COLOR, CAMERA_OTHER_COLOR, LEGEND
 from coordinate_determination import ViewCoordinateDetermination
 from map_image import MapImage
 from object_clustering import ObjectClustering
-
-CAMERA_COLOR = (0, 0, 255)
-PEOPLES_TOP_COLOR = (0, 255, 255)
-PEOPLES_OTHER_COLOR = (0, 255, 0)
 
 
 class VideoDetection:
@@ -40,11 +37,16 @@ class VideoDetection:
     def draw_map(self, clusters):
         map_img = MapImage(self.output_width, int(self.output_height/2), self.range_x, self.range_y)
         camera_objects = [(view.video_stream, view.T[0][0], view.T[1][0]) for view in self.video_views]
-        map_img.draw_objects(camera_objects, CAMERA_COLOR)
+        map_img.draw_legend(LEGEND)
+        map_img.draw_objects(camera_objects, CAMERA_POINT_COLOR)
         peoples_top = [(cluster, *clusters[cluster]['mean']) for cluster in clusters if len(clusters[cluster]['points']) > 1]
-        map_img.draw_objects(peoples_top, PEOPLES_TOP_COLOR)
-        peoples_other = [(cluster, *clusters[cluster]['mean']) for cluster in clusters if len(clusters[cluster]['points']) == 1]
-        map_img.draw_objects(peoples_other, PEOPLES_OTHER_COLOR)
+        map_img.draw_objects(peoples_top, MULTI_VIEW_COLOR)
+        peoples_other_1 = [(cluster, *clusters[cluster]['mean']) for cluster in clusters if
+                           len(clusters[cluster]['points']) == 1 and clusters[cluster]['cameras'].get(0) is not None]
+        map_img.draw_objects(peoples_other_1, CAMERA_1_COLOR)
+        peoples_other_2 = [(cluster, *clusters[cluster]['mean']) for cluster in clusters if
+                           len(clusters[cluster]['points']) == 1 and clusters[cluster]['cameras'].get(1) is not None]
+        map_img.draw_objects(peoples_other_2, CAMERA_2_COLOR)
         return map_img.map
 
     def draw_rectangle(self, clusters, frames):
@@ -53,9 +55,14 @@ class VideoDetection:
                 x1, y1, x2, y2 = clusters[cluster]['cameras'][camera]
                 X, Y = clusters[cluster]['mean']
                 if len(clusters[cluster]['points']) > 1:
-                    color = PEOPLES_TOP_COLOR
+                    color = MULTI_VIEW_COLOR
                 else:
-                    color = PEOPLES_OTHER_COLOR
+                    if clusters[cluster]['cameras'].get(0) is not None:
+                        color = CAMERA_1_COLOR
+                    elif clusters[cluster]['cameras'].get(1) is not None:
+                        color = CAMERA_2_COLOR
+                    else:
+                        color = CAMERA_OTHER_COLOR
                 frame = frames[camera]
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                 cv2.putText(frame, f"Id = {cluster} {X:.2f}, {Y:.2f}", (x1, y1 - 10),
